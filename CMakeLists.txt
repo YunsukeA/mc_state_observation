@@ -18,6 +18,8 @@ set(CXX_DISABLE_WERROR 1)
 include(cmake/base.cmake)
 set_default_cmake_build_type(RelWithDebInfo)
 
+set(PROJECT_USE_CMAKE_EXPORT TRUE)
+
 project(${PROJECT_NAME} LANGUAGES CXX)
 
 if(UNIX
