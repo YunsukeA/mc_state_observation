@@ -6,7 +6,7 @@
 namespace mc_state_observation::measurements
 {
 
-struct SchmidtTrigger
+struct SchmittTrigger
 {
   double lowerThreshold;
   double upperThreshold;
@@ -185,6 +185,12 @@ public:
     return nullptr;
   }
 
+  /*! \brief Add the contacts manager to the logger
+   *
+   * @param category Category in which to log the contacts manager
+   */
+  void addToLogger(mc_rtc::Logger &, const std::string & category);
+
 private:
   /// @brief Initializer for a contacts detection based on contact surfaces
   /// @param ctl The controller
@@ -234,7 +240,7 @@ protected:
   ContactsDetection contactsDetectionMethod_ = Undefined;
   // threshold for the contacts detection
   // double contactDetectionThreshold_;
-  SchmidtTrigger schmidtTrigger_;
+  SchmittTrigger schmittTrigger_;
 
   // list of surfaces used for contacts detection if @contactsDetection_ is
   // set to "Surfaces"
