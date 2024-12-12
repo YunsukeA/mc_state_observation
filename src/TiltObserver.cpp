@@ -13,7 +13,7 @@ using OdometryType = measurements::OdometryType;
 using LoContactsManager = odometry::LeggedOdometryManager::ContactsManager;
 
 TiltObserver::TiltObserver(const std::string & type, double dt, bool asBackup)
-: mc_observers::Observer(type, dt), estimator_(alpha_, beta_, gamma_), odometryManager_(dt)
+: mc_observers::Observer(type, dt), estimator_(alpha_, beta_, gamma_, dt), odometryManager_(dt)
 {
   asBackup_ = asBackup;
 }
