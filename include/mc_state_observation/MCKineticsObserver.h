@@ -295,6 +295,10 @@ public:
    */
   inline const Eigen::VectorXd measurements() const { return observer_.getEKF().getLastMeasurement(); }
 
+  /* \todo
+    add a method to get the last estimated state vector
+  */
+
   /** Floating-base transform estimate.
    *
    */
