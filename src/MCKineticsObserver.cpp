@@ -61,7 +61,6 @@ void MCKineticsObserver::configure(const mc_control::MCController & ctl, const m
         contactsConfig("surfacesForContactDetection", std::vector<std::string>());
 
     measurements::ContactsManagerSurfacesConfiguration contactsConf(name(), surfacesForContactDetection);
-    contactSensorsIgnored_ = contactsConfig("contactSensorsIgnored", std::vector<std::string>());
 
     contactsConf.verbose(true);
     if(contactsConfig.has("schmittTriggerLowerPropThreshold") && contactsConfig.has("schmittTriggerUpperPropThreshold"))
@@ -219,7 +218,7 @@ void MCKineticsObserver::configure(const mc_control::MCController & ctl, const m
   contactProcessCovariance_.setZero();
   // if we stick to the control robot's anchor frame, we don't allow the correction of the contacts pose
 
-  if(observer_.getWithAdaptativeContactProcessCov() && !ignoreWrenchSensors_)
+  if(observer_.getWithAdaptativeContactProcessCov())
   {
     contactProcessCovariance_.block<3, 3>(0, 0) =
         (ekfStateProcessVariances("contactPositionProcessVariance").operator so::Vector3()).matrix().asDiagonal();
@@ -1150,9 +1149,6 @@ void MCKineticsObserver::addToLogger(const mc_control::MCController & ctl,
                      });
   logger.addLogEntry(category_ + "_debug_config_OdometryType",
                      [this]() -> std::string { return measurements::odometryTypeToSstring(odometryType_); });
-
-  logger.addLogEntry(category_ + "_debug_config_withContactStateCovRemoval",
-                     [this]() -> std::string { return observer_.getWithContactStateCovRemoval() ? "True" : "False"; });
 
   logger.addLogEntry(category_ + "_debug_config_withAdaptativeContactProcessCov",
                      [this]() -> std::string
