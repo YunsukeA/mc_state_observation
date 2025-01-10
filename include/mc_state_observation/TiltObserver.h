@@ -180,11 +180,13 @@ protected:
   stateObservation::kine::Kinematics worldImuKine_;
 
   /* Estimation results */
-
+  stateObservation::Vector initX_;
   // The observed tilt of the sensor
   Eigen::Matrix3d estimatedRotationIMU_;
   /// State vector estimated by the Tilt Observer
   stateObservation::Vector xk_;
+  /// State vector estimated by the Tilt Observer
+  stateObservation::Vector yk_;
   // estimated kinematics of the floating base in the world
   stateObservation::kine::Kinematics correctedWorldFbKine_;
   // estimated kinematics of the IMU in the world
