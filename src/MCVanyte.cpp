@@ -2,7 +2,7 @@
 
 #include "mc_state_observation/measurements/measurements.h"
 #include "mc_state_observation/odometry/LeggedOdometryManager.h"
-#include <mc_state_observation/MCWaiko.h>
+#include <mc_state_observation/MCVanytEstimator.h>
 #include <mc_state_observation/gui_helpers.h>
 #include <state-observation/tools/rigid-body-kinematics.hpp>
 
@@ -14,13 +14,13 @@ namespace so = stateObservation;
 using OdometryType = measurements::OdometryType;
 using LoContactsManager = odometry::LeggedOdometryManager::ContactsManager;
 
-MCWaiko::MCWaiko(const std::string & type, double dt, bool asBackup)
+MCVanytEstimator::MCVanytEstimator(const std::string & type, double dt, bool asBackup)
 : mc_observers::Observer(type, dt), estimator_(alpha_, beta_, 1 / (2 * M_PI), dt), odometryManager_(dt)
 {
   asBackup_ = asBackup;
 }
 
-void MCWaiko::configure(const mc_control::MCController & ctl, const mc_rtc::Configuration & config)
+void MCVanytEstimator::configure(const mc_control::MCController & ctl, const mc_rtc::Configuration & config)
 {
   robot_ = config("robot", ctl.robot().name());
   imuSensor_ = config("imuSensor", ctl.robot().bodySensor().name());
@@ -149,7 +149,7 @@ void MCWaiko::configure(const mc_control::MCController & ctl, const mc_rtc::Conf
   }
 }
 
-void MCWaiko::reset(const mc_control::MCController & ctl)
+void MCVanytEstimator::reset(const mc_control::MCController & ctl)
 {
   const auto & robot = ctl.robot(robot_);
   const auto & realRobot = ctl.realRobot(robot_);
@@ -193,7 +193,7 @@ void MCWaiko::reset(const mc_control::MCController & ctl)
   odometryManager_.reset();
 }
 
-bool MCWaiko::run(const mc_control::MCController & ctl)
+bool MCVanytEstimator::run(const mc_control::MCController & ctl)
 {
   const auto & realRobot = ctl.realRobot(robot_);
   auto & logger = (const_cast<mc_control::MCController &>(ctl)).logger();
@@ -217,7 +217,8 @@ bool MCWaiko::run(const mc_control::MCController & ctl)
   return true;
 }
 
-void MCWaiko::updateNecessaryFramesOdom(const mc_control::MCController & ctl, const mc_rbdyn::Robot & odomRobot)
+void MCVanytEstimator::updateNecessaryFramesOdom(const mc_control::MCController & ctl,
+                                                 const mc_rbdyn::Robot & odomRobot)
 
 {
   // pose of the floating base' frame in the world for the odometry robot
@@ -248,7 +249,7 @@ void MCWaiko::updateNecessaryFramesOdom(const mc_control::MCController & ctl, co
   if(odometryManager_.anchorPointMethodChanged_) { imuAnchorKine_.linVel().setZero(); }
 }
 
-void MCWaiko::runTiltEstimator(const mc_control::MCController & ctl, const mc_rbdyn::Robot & odomRobot)
+void MCVanytEstimator::runTiltEstimator(const mc_control::MCController & ctl, const mc_rbdyn::Robot & odomRobot)
 {
   if(ctl.realRobot(robot_).hasBodySensor("VisualGyroSensor"))
   {
@@ -349,7 +350,8 @@ void MCWaiko::runTiltEstimator(const mc_control::MCController & ctl, const mc_rb
   backupFbKinematics_.push_back(conversions::kinematics::fromSva(poseW_, so::kine::Kinematics::Flags::pose));
 }
 
-void MCWaiko::updatePoseAndVel(const so::Vector3 & localWorldImuLinVel, const so::Vector3 & localWorldImuAngVel)
+void MCVanytEstimator::updatePoseAndVel(const so::Vector3 & localWorldImuLinVel,
+                                        const so::Vector3 & localWorldImuAngVel)
 {
   correctedWorldFbKine_.position = poseW_.translation();
   correctedWorldFbKine_.orientation = R_0_fb_; // which is equal to poseW_.rotation().transpose();
@@ -373,7 +375,7 @@ void MCWaiko::updatePoseAndVel(const so::Vector3 & localWorldImuLinVel, const so
   odometryManager_.replaceRobotVelocity(velW_);
 }
 
-void MCWaiko::update(mc_control::MCController & ctl)
+void MCVanytEstimator::update(mc_control::MCController & ctl)
 {
   auto & realRobot = ctl.realRobot(robot_);
   if(updateRobot_)
@@ -395,13 +397,14 @@ void MCWaiko::update(mc_control::MCController & ctl)
   }
 }
 
-void MCWaiko::update(mc_rbdyn::Robot & robot)
+void MCVanytEstimator::update(mc_rbdyn::Robot & robot)
 {
   robot.posW(poseW_);
   robot.velW(velW_);
 }
 
-const so::kine::Kinematics MCWaiko::backupFb(boost::circular_buffer<so::kine::Kinematics> * koBackupFbKinematics)
+const so::kine::Kinematics MCVanytEstimator::backupFb(
+    boost::circular_buffer<so::kine::Kinematics> * koBackupFbKinematics)
 {
   // new initial pose of the floating base
   so::kine::Kinematics worldResetKine = *(koBackupFbKinematics->begin());
@@ -434,10 +437,10 @@ const so::kine::Kinematics MCWaiko::backupFb(boost::circular_buffer<so::kine::Ki
   return koBackupFbKinematics->back();
 }
 
-void MCWaiko::delayedOriMeasurementHandler(const mc_control::MCController & ctl,
-                                           const so::Matrix3 & meas,
-                                           unsigned long delay,
-                                           double gain)
+void MCVanytEstimator::delayedOriMeasurementHandler(const mc_control::MCController & ctl,
+                                                    const so::Matrix3 & meas,
+                                                    unsigned long delay,
+                                                    double gain)
 {
   const auto & iterationsBuffer = estimator_.getIterationsBuffer();
   // Let us denote k the time on which the orientation measurement started to be computed, but is still not available.
@@ -478,7 +481,7 @@ void MCWaiko::delayedOriMeasurementHandler(const mc_control::MCController & ctl,
   addDelayedOriMeasLogs(logger, name());
 }
 
-void MCWaiko::setOdometryType(OdometryType newOdometryType)
+void MCVanytEstimator::setOdometryType(OdometryType newOdometryType)
 {
   if((newOdometryType != measurements::OdometryType::Odometry6d)
      && (newOdometryType != measurements::OdometryType::Flat))
@@ -489,7 +492,7 @@ void MCWaiko::setOdometryType(OdometryType newOdometryType)
   odometryManager_.setOdometryType(newOdometryType);
 }
 
-void MCWaiko::addDelayedOriMeasLogs(mc_rtc::Logger & logger, const std::string & category)
+void MCVanytEstimator::addDelayedOriMeasLogs(mc_rtc::Logger & logger, const std::string & category)
 {
   logger.addLogEntry(category + "_delayedOriMeas_" + "meas", &delayedOriMeas_,
                      [this]() -> Eigen::Quaterniond { return Eigen::Quaterniond(delayedOriMeas_.meas_).inverse(); });
@@ -504,14 +507,16 @@ void MCWaiko::addDelayedOriMeasLogs(mc_rtc::Logger & logger, const std::string &
                                        category + "_delayedOriMeas_" + "updatedPoseWithMeas");
 }
 
-void MCWaiko::removeDelayedOriMeasLogs(mc_rtc::Logger & logger)
+void MCVanytEstimator::removeDelayedOriMeasLogs(mc_rtc::Logger & logger)
 {
   logger.removeLogEntries(&delayedOriMeas_);
   conversions::kinematics::removeFromLogger(logger, delayedOriMeas_.updatedPoseWithMeas_);
   conversions::kinematics::removeFromLogger(logger, delayedOriMeas_.updatedPoseWithoutMeas_);
 }
 
-void MCWaiko::addToLogger(const mc_control::MCController & ctl, mc_rtc::Logger & logger, const std::string & category)
+void MCVanytEstimator::addToLogger(const mc_control::MCController & ctl,
+                                   mc_rtc::Logger & logger,
+                                   const std::string & category)
 {
   category_ = category;
 
@@ -776,7 +781,7 @@ void MCWaiko::addToLogger(const mc_control::MCController & ctl, mc_rtc::Logger &
   conversions::kinematics::addToLogger(logger, correctedWorldImuKine_, category + "_debug_correctedWorldImuKine_");
 }
 
-void MCWaiko::removeFromLogger(mc_rtc::Logger & logger, const std::string & category)
+void MCVanytEstimator::removeFromLogger(mc_rtc::Logger & logger, const std::string & category)
 {
   logger.removeLogEntry(category + "_imuVelC");
   logger.removeLogEntry(category + "_imuPoseC");
@@ -784,11 +789,13 @@ void MCWaiko::removeFromLogger(mc_rtc::Logger & logger, const std::string & cate
   logger.removeLogEntry(category + "_controlAnchorFrame");
 }
 
-void MCWaiko::addToGUI(const mc_control::MCController &, mc_rtc::gui::StateBuilder &, const std::vector<std::string> &)
+void MCVanytEstimator::addToGUI(const mc_control::MCController &,
+                                mc_rtc::gui::StateBuilder &,
+                                const std::vector<std::string> &)
 {
   using namespace mc_state_observation::gui;
   // gui.addElement(category, make_input_element("alpha", alpha_), make_input_element("beta", beta_));
 }
 
 } // namespace mc_state_observation
-EXPORT_OBSERVER_MODULE("MCWaiko", mc_state_observation::MCWaiko)
+EXPORT_OBSERVER_MODULE("MCVanytEstimator", mc_state_observation::MCVanytEstimator)

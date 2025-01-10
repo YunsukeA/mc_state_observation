@@ -4,12 +4,12 @@
 
 #include <forward_list>
 #include <mc_state_observation/odometry/LeggedOdometryManager.h>
-#include <state-observation/observer/waiko.hpp>
+#include <state-observation/observer/vanyt-estimator.hpp>
 
 namespace mc_state_observation
 {
 
-struct MCWaiko : public mc_observers::Observer
+struct MCVanytEstimator : public mc_observers::Observer
 {
   /// @brief Structure containing information about delayed orientation measurements.
   struct DelayedOriMeasurement
@@ -24,10 +24,10 @@ struct MCWaiko : public mc_observers::Observer
   friend struct MCKineticsObserver;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 public:
-  /// @brief Constructor for the MCWaiko.
-  /// @details The parameters asBackup is given only if Waiko is used as a backup by the
+  /// @brief Constructor for the MCVanytEstimator.
+  /// @details The parameters asBackup is given only if the Vanyte is used as a backup by the
   /// Kinetics Observer
-  MCWaiko(const std::string & type, double dt, bool asBackup = false);
+  MCVanytEstimator(const std::string & type, double dt, bool asBackup = false);
 
   void configure(const mc_control::MCController & ctl, const mc_rtc::Configuration &) override;
 
@@ -171,7 +171,7 @@ protected:
   // function used to compute the anchor frame of the robot in the world.
   std::string anchorFrameFunction_;
   // instance of the Tilt Estimator for humanoid robots.
-  stateObservation::Waiko estimator_;
+  stateObservation::VanytEstimator estimator_;
 
   /* kinematics used for computation */
   // kinematics of the IMU in the floating base after the encoders update
