@@ -297,6 +297,7 @@ public:
 
   /* \todo
     add a method to get the last estimated state vector
+    inline const Eigen::VectorXd state() const { return observer_.getEKF().getLastState(); }
   */
 
   /** Floating-base transform estimate.
@@ -484,6 +485,12 @@ private:
   stateObservation::Vector correctedMeasurements_;
   // For logs only. Kinematics of the centroid frame within the world frame
   stateObservation::kine::Kinematics globalCentroidKinematics_;
+
+  /* For datastore */
+  // set true when using estimated value in Force control controller
+  bool isInitialized_ = false;
+  bool exportContactWrench_ = false;
+  bool exportExternalWrench_ = false;
 };
 
 } // namespace mc_state_observation
