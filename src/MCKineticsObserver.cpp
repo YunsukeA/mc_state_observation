@@ -716,29 +716,9 @@ void MCKineticsObserver::update(mc_control::MCController & ctl) // this function
   update(realRobot);
   realRobot.forwardKinematics();
   realRobot.forwardVelocity();
-  // export values initailization
 
-  if(exportContactWrench_)
-  {
-    if(!isInitialized_)
-    {
-      if(ctl.datastore().has(robot_ + "::estimatedContactWrench")) { ctl.datastore().remove("estimatedContactWrench"); }
-      auto & exportestimatedContactWrench = ctl.datastore().make<Eigen::Vector6d>(
-          robot_ + "::estimatedContactWrench", Eigen::Vector3d::Zero()); // initialize Vectors
-
-      ctl.datastore().make_call(robot_ + "::estimatedContactWrench",
-                                [this]() -> Eigen::Vector6d { return observer_.getContactWrench(contactNbr) });
-    }
-  }
-  if(exportExternalWrench_)
-  {
-    if(ctl.datastore().has(robot_ + "::estimatedExternalWrench"))
-    {
-      ctl.datastore().remove("::estimatedExternalWrench");
-    }
-    ctl.datastore().make<Eigen::Vector6d>(robot_ + "::estimatedExternalWrench",
-                                          Eigen::Vector6d::Zero()); // initialize Vectors
-  }
+  // export values
+  exportEstimatedValue(ctl);
 }
 
 // used only to update the visual representation of the estimated robot
@@ -2059,6 +2039,29 @@ void MCKineticsObserver::removeContactMeasurementsLogEntries(mc_rtc::Logger & lo
   logger.removeLogEntry(category_ + "_measurements_contacts_torque_" + contact.name() + "_measured");
   logger.removeLogEntry(category_ + "_measurements_contacts_torque_" + contact.name() + "_predicted");
   logger.removeLogEntry(category_ + "_measurements_contacts_torque_" + contact.name() + "_corrected");
+}
+
+//////////////////////////////////////////////////////
+///////////// Export Value Function //////////////////
+//////////////////////////////////////////////////////
+
+void MCKineticsObserver::exportEstimatedValue(mc_control::MCController & ctl)
+{
+  /* Export Estimated Values */
+  for(unsigned int i = 0; i < maxContacts_; i++)
+  {
+    if(exportContactWrench_)
+    {
+      ctl.datastore().make_call(robot_ + "::estimatedContactWrench_" + std::to_string(observer_.contactIndexTangent(i)),
+                                [this, i]() -> Eigen::Vector6d
+                                { return observer_.getContactWrench(observer_.contactIndexTangent(i)); });
+    }
+  }
+  if(exportExternalWrench_)
+  {
+    ctl.datastore().make_call(robot_ + "::estimatedExternalWrench",
+                              [this]() -> Eigen::Vector6d { return observer_.getUnmodeledWrench(); });
+  }
 }
 
 } // namespace mc_state_observation

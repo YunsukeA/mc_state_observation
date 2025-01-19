@@ -488,9 +488,17 @@ private:
 
   /* For datastore */
   // set true when using estimated value in Force control controller
-  bool isInitialized_ = false;
   bool exportContactWrench_ = false;
   bool exportExternalWrench_ = false;
+
+  /** Export the estimated value to the controller.
+   * @brief Export the estimated value to the controller.
+   * @details Export the estimated value to the controller. make lambda function to export the estimated value using
+   * datastore utility.
+   * @param ctl Controller
+   *
+   */
+  void exportEstimatedValue(mc_control::MCController & ctl);
 };
 
 } // namespace mc_state_observation
