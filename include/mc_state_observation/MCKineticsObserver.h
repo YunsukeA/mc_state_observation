@@ -490,6 +490,7 @@ private:
   // set true when using estimated value in Force control controller
   bool exportContactWrench_ = false;
   bool exportExternalWrench_ = false;
+  bool isInitialized_ = false;
 
   /** Export the estimated value to the controller.
    * @brief Export the estimated value to the controller.
