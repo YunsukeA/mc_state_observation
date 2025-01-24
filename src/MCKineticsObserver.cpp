@@ -1,6 +1,7 @@
 /* Copyright 2017-2020 CNRS-AIST JRL, CNRS-UM LIRMM */
 #include <mc_observers/ObserverMacros.h>
 #include <mc_rtc/logging.h>
+#include <SpaceVecAlg/EigenTypedef.h>
 
 #include <mc_state_observation/MCKineticsObserver.h>
 #include <mc_state_observation/gui_helpers.h>
@@ -298,7 +299,7 @@ void MCKineticsObserver::configure(const mc_control::MCController & ctl, const m
     if(exportValueConfig.has("exportContactWrench")) { exportValueConfig("exportContactWrench", exportContactWrench_); }
     if(exportValueConfig.has("exportExternalWrench"))
     {
-      exportValueConfig("exportExternaltWrench", exportExternalWrench_);
+      exportValueConfig("exportExternalWrench", exportExternalWrench_);
     }
   }
 }
@@ -2053,36 +2054,38 @@ void MCKineticsObserver::removeContactMeasurementsLogEntries(mc_rtc::Logger & lo
 
 void MCKineticsObserver::exportEstimatedValue(mc_control::MCController & ctl)
 {
-  if(!isInitialized_)
+  // Remove old values
+  // I couldm't find a way to assign a value to the existing datastore object. So I remove it and create a new one
+  // everytime.
+  for(unsigned int i = 0; i < maxContacts_; i++)
   {
-    for(unsigned int i = 0; i < maxContacts_; i++)
+    if(ctl.datastore().has(robot_ + "::estimatedContactWrench_" + std::to_string(i)))
     {
-      if(ctl.datastore().has(robot_ + "::estimatedContactWrench_" + std::to_string(observer_.contactIndexTangent(i))))
-      {
-        ctl.datastore().remove(robot_ + "::estimatedContactWrench_" + std::to_string(observer_.contactIndexTangent(i)));
-      }
+      ctl.datastore().remove(robot_ + "::estimatedContactWrench_" + std::to_string(i));
     }
-    if(ctl.datastore().has(robot_ + "::estimatedExternalWrench"))
-    {
-      ctl.datastore().remove(robot_ + "::estimatedExternalWrench");
-    }
+  }
+  if(ctl.datastore().has(robot_ + "::estimatedExternalWrench"))
+  {
+    ctl.datastore().remove(robot_ + "::estimatedExternalWrench");
+  }
 
-    /* Export Estimated Values */
-    for(unsigned int i = 0; i < maxContacts_; i++)
+  /* Export Estimated Values */
+  for(unsigned int i = 0; i < maxContacts_; i++)
+  {
+    if(exportContactWrench_)
     {
-      if(exportContactWrench_)
-      {
-        ctl.datastore().make_call(robot_ + "::estimatedContactWrench_" + std::to_string(i),
-                                  [this, i]() -> Eigen::Vector6d
-                                  { return observer_.getContactWrench(observer_.contactIndexTangent(i)); });
-      }
+      ctl.datastore().make<Eigen::Vector6d>(robot_ + "::estimatedContactWrench_" + std::to_string(i),
+                                            observer_.getContactWrench(i));
+      auto & estimatedContactWrench =
+          ctl.datastore().get<Eigen::Vector6d>(robot_ + "::estimatedContactWrench_" + std::to_string(i));
+      mc_rtc::log::info("[DATASTORE]Exporting estimatedContactWrench_{}: \n {}", i, estimatedContactWrench);
     }
-    if(exportExternalWrench_)
-    {
-      ctl.datastore().make_call(robot_ + "::estimatedExternalWrench",
-                                [this]() -> Eigen::Vector6d { return observer_.getUnmodeledWrench(); });
-    }
-    isInitialized_ = true;
+  }
+  if(exportExternalWrench_)
+  {
+    ctl.datastore().make<Eigen::Vector6d>(robot_ + "::estimatedExternalWrench", observer_.getUnmodeledWrench());
+    auto & estimatedExternalWrench = ctl.datastore().get<Eigen::Vector6d>(robot_ + "::estimatedExternalWrench");
+    mc_rtc::log::info("[DATASTORE]Exporting estimatedExternalWrench: \n {}", estimatedExternalWrench);
   }
 }
 
