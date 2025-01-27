@@ -2,18 +2,11 @@
 
 #pragma once
 
-#include <mc_rbdyn/Contact.h>
-#include <mc_rbdyn/Robot.h>
-
-#include <mc_state_observation/observersTools/leggedOdometryTools.h>
+#include <mc_state_observation/odometry/LeggedOdometryManager.h>
 #include <state-observation/dynamics-estimators/kinetics-observer.hpp>
-
-#include <mc_observers/Observer.h>
 
 namespace mc_state_observation
 {
-namespace so = stateObservation;
-
 struct NaiveOdometry : public mc_observers::Observer
 {
 
@@ -104,32 +97,25 @@ public:
    */
   inline const sva::PTransformd & posW() const { return X_0_fb_; }
 
-  /** Floating-base velocity estimate.
-   *
-   */
-  inline const sva::MotionVecd & velW() const { return v_fb_0_; }
-
 private:
-  std::string category_ = "NaiveOdometry_";
+  // category to plot the estimator in
+  std::string category_;
+
   /* custom list of robots to display */
   std::shared_ptr<mc_rbdyn::Robots> my_robots_;
 
-  // threshold on the force for the contact detection.
-  double contactDetectionThreshold_;
-
-  double mass_ = 42; // [kg]
+  double mass_; // [kg]
   // std::set<std::string> contacts_; ///< Sorted list of contacts
   std::set<std::string> oldContacts_;
 
-  sva::MotionVecd v_fb_0_ = sva::MotionVecd::Zero();
+  // estimated pose of the floating base
   sva::PTransformd X_0_fb_ = sva::PTransformd::Identity();
-  sva::MotionVecd a_fb_0_ = sva::MotionVecd::Zero();
+  // estimated velocity of the floating base
+  sva::MotionVecd v_0_fb;
 
-  leggedOdometry::LeggedOdometryManager odometryManager_;
+  odometry::LeggedOdometryManager odometryManager_;
 
-  bool accUpdatedUpstream_ = false;
-
-  using LoContactsManager = leggedOdometry::LeggedOdometryManager::ContactsManager;
+  using LoContactsManager = odometry::LeggedOdometryManager::ContactsManager;
 };
 
 } // namespace mc_state_observation

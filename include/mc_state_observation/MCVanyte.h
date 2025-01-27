@@ -2,21 +2,32 @@
 
 #include <boost/circular_buffer.hpp>
 
+#include <forward_list>
 #include <mc_state_observation/odometry/LeggedOdometryManager.h>
-#include <state-observation/observer/tilt-estimator-humanoid.hpp>
+#include <state-observation/observer/vanyt-estimator.hpp>
 
 namespace mc_state_observation
 {
 
-struct TiltObserver : public mc_observers::Observer
+struct MCVanyte : public mc_observers::Observer
 {
+  /// @brief Structure containing information about delayed orientation measurements.
+  struct DelayedOriMeasurement
+  {
+    stateObservation::Matrix3 meas_;
+    double gain_;
+    stateObservation::kine::Kinematics updatedPoseWithoutMeas_;
+    stateObservation::kine::Kinematics updatedPoseWithMeas_;
+  };
+
   // we define MCKineticsObserver as a friend as it can instantiate this observer as a backup
   friend struct MCKineticsObserver;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 public:
-  /// @brief Constructor for the TiltObserver.
-  /// @details The parameter is given only if the Tilt Observer is used as a backup by the Kinetics Observer
-  TiltObserver(const std::string & type, double dt, bool asBackup = false);
+  /// @brief Constructor for the MCVanyte.
+  /// @details The parameters asBackup is given only if the Vanyte is used as a backup by the
+  /// Kinetics Observer
+  MCVanyte(const std::string & type, double dt, bool asBackup = false);
 
   void configure(const mc_control::MCController & ctl, const mc_rtc::Configuration &) override;
 
@@ -25,27 +36,13 @@ public:
   bool run(const mc_control::MCController & ctl) override;
 
   /**
-   * @brief Updates the frames that are necessary for the state estimation when not using odometry.
+   * @brief Updates the frames that are necessary for the state estimation.
    * @details In particular the kinematics of the anchor in the IMU frame.
    *
    * @param ctl Controller.
    * @param odomRobot
    */
-  void updateNecessaryFramesNoOdometry(const mc_control::MCController & ctl, const mc_rbdyn::Robot & updatedRobot);
-
-  /**
-   * @brief Updates the frames that are necessary for the state estimation when using odometry.
-   * @details In particular the kinematics of the anchor in the IMU frame.
-   *
-   * @param ctl Controller.
-   * @param odomRobot
-   */
-  void updateNecessaryFramesOdom(const mc_control::MCController & ctl, const mc_rbdyn::Robot & updatedRobot);
-
-  /// @brief updates the kinematics of the anchor frame of the robot when not performing odometry
-  /// @param ctl Controller
-  /// @param updatedRobot robot corresponding to the control robot with updated encoders
-  void updateAnchorFrameNoOdometry(const mc_control::MCController & ctl, const mc_rbdyn::Robot & updatedRobot);
+  void updateNecessaryFramesOdom(const mc_control::MCController & ctl, const mc_rbdyn::Robot & odomRobot);
 
   /// @brief updates the pose and the velcoity of the floating base in the world frame using our estimation results
   /// @param localWorldImuLinVel estimated local linear velocity of the IMU in the world frame
@@ -55,9 +52,9 @@ public:
 
   /*! \brief update the robot pose in the world only for visualization purpose
    *
-   * @param updatedRobot Robot with the kinematics of the control robot but with updated joint values.
+   * @param odomRobot Robot with the kinematics of the control robot but with updated joint values.
    */
-  void runTiltEstimator(const mc_control::MCController & ctl, const mc_rbdyn::Robot & updatedRobot);
+  void runTiltEstimator(const mc_control::MCController & ctl, const mc_rbdyn::Robot & odomRobot);
 
   /// @brief Updates the real robot and/or the IMU signal using our estimation results
   /// @param ctl Controller
@@ -75,12 +72,21 @@ public:
   const stateObservation::kine::Kinematics backupFb(
       boost::circular_buffer<stateObservation::kine::Kinematics> * koBackupFbKinematics);
 
-  /// @brief Computes the pose transformation estimated by the Tilt Observer between the last two iterations and
-  /// applies it to the given kinematics.
-  /// @details Also fills the velocity with the velocity estimated by the Tilt Observer (expressed in the new frame)
-  /// @param kine The kinematics on which to apply the transformation
-  /// @return stateObservation::kine::Kinematics
-  stateObservation::kine::Kinematics applyLastTransformation(const stateObservation::kine::Kinematics & kine);
+  /// @brief Re-estimates the current state using a delayed orientation measurement.
+  /// @details Let us denote k the time on which the orientation measurement started to be computed, but is still not
+  /// available. We replay the estimation at time k using the buffered state and measurements, this time using the newly
+  /// available orientation measurement. We then apply the transformation between the pose at time k+1 and the current
+  /// iteration.
+  /// @param ctl The delayed orientation measurement.
+  /// @param delayedOriMeas The delayed orientation measurement.
+  /// @param delayIters Number of iterations corresponding to the measurement delay.
+  /// @param delayedOriGain The gain associated to the delayed orientation within the filter.
+  void delayedOriMeasurementHandler(const mc_control::MCController & ctl,
+                                    const stateObservation::Matrix3 & delayedOriMeas,
+                                    unsigned long delayIters,
+                                    double delayedOriGain);
+
+  inline const odometry::LeggedOdometryManager & odometryManager() { return odometryManager_; }
 
 protected:
   /*! \brief update the robot pose in the world only for visualization purpose
@@ -110,9 +116,25 @@ protected:
                 mc_rtc::gui::StateBuilder &,
                 const std::vector<std::string> & /* category */) override;
 
+  /*! \brief Add logs related to delayed orientation measurements
+   * @param logger
+   * @param category Category in which to log this observer
+   */
+  void addDelayedOriMeasLogs(mc_rtc::Logger &, const std::string & category);
+
+  /*! \brief Remove the logs related to delayed orientation measurements
+   * @param logger
+   */
+  void removeDelayedOriMeasLogs(mc_rtc::Logger &);
+
+public:
+  // estimated kinematics of the IMU in the world
+  stateObservation::kine::Kinematics correctedWorldImuKine_;
+
 protected:
   // category to plot the estimator in
   std::string category_;
+
   // container for our robots
   std::shared_ptr<mc_rbdyn::Robots> my_robots_;
 
@@ -129,7 +151,7 @@ protected:
   ///  parameter related to the fast convergence of the tilt
   double finalBeta_ = 1;
   /// parameter related to the orthogonality
-  double finalGamma_ = 2;
+  double finalRho_ = 2;
 
   /*!
    * initial value of the parameter related to the convergence of the linear velocity
@@ -139,7 +161,7 @@ protected:
   /// initial value of the parameter related to the fast convergence of the tilt
   double beta_ = 1;
   /// initial value of the parameter related to the orthogonality
-  double gamma_ = 2;
+  double rho_ = 2;
 
   // flag indicating the variables we want in the resulting Kinematics object
   stateObservation::kine::Kinematics::Flags::Byte flagPoseVels_ =
@@ -149,53 +171,30 @@ protected:
   // function used to compute the anchor frame of the robot in the world.
   std::string anchorFrameFunction_;
   // instance of the Tilt Estimator for humanoid robots.
-  stateObservation::TiltEstimatorHumanoid estimator_;
+  stateObservation::VanytEstimator estimator_;
 
   /* kinematics used for computation */
   // kinematics of the IMU in the floating base after the encoders update
   stateObservation::kine::Kinematics fbImuKine_;
-  // kinematics of the anchor frame of the control robot in the world. Version as a PTransform object.
-  sva::PTransformd X_0_C_ctl_;
-  // kinematics of the anchor frame of the control robot updated with the encoders in the world.  Version as a
-  // PTransform object.
-  sva::PTransformd X_0_C_;
-
-  // kinematics of the anchor frame of the control robot in the world. Version as a Kinematics object.
-  stateObservation::kine::Kinematics worldAnchorKine_ctl_;
-  // kinematics of the anchor frame of the control robot updated with the encoders in the world. Version as a Kinematics
-  // object.
-  stateObservation::kine::Kinematics worldAnchorKine_;
-
   // kinematics of the floating base in the world after the encoders update
   stateObservation::kine::Kinematics worldFbKine_;
   // kinematics of the anchor frame in the IMU frame after the encoders update
   stateObservation::kine::Kinematics imuAnchorKine_;
-  // kinematics of the anchor frame of the CONTROL robot in the world frame for the new iteration
-  stateObservation::kine::Kinematics newWorldAnchorKine_ctl_;
-  // kinematics of the anchor frame in the world frame for the new iteration, after the encoders update
-  stateObservation::kine::Kinematics newWorldAnchorKine_;
-  // kinematics of the IMU in the world for the control robot
-  stateObservation::kine::Kinematics worldImuKine_ctl_;
   // kinematics of the IMU in the world after the encoders update
   stateObservation::kine::Kinematics worldImuKine_;
 
   /* Estimation results */
-  stateObservation::Vector initX_;
+
   // The observed tilt of the sensor
   Eigen::Matrix3d estimatedRotationIMU_;
   /// State vector estimated by the Tilt Observer
   stateObservation::Vector xk_;
-  /// State vector estimated by the Tilt Observer
-  stateObservation::Vector yk_;
   // estimated kinematics of the floating base in the world
   stateObservation::kine::Kinematics correctedWorldFbKine_;
-  // estimated kinematics of the IMU in the world
-  stateObservation::kine::Kinematics correctedWorldImuKine_;
 
   /* Floating base's kinematics */
   Eigen::Matrix3d R_0_fb_; // estimated orientation of the floating base in the world frame
   sva::PTransformd poseW_; ///< Estimated pose of the floating-base in world frame */
-  sva::PTransformd prevPoseW_; ///< Estimated pose of the floating-base in world frame */
   sva::MotionVecd velW_; ///< Estimated velocity of the floating-base in world frame */
 
   // anchor frame's variables
@@ -210,6 +209,8 @@ protected:
   /* Odometry parameters */
   odometry::LeggedOdometryManager odometryManager_; // manager for the legged odometry
 
+  double contactDetectionThreshold_; // threshold used for the contacts detection
+
   /* Variables for the use as a backup */
   // indicates if the estimator is used as a backup or not
   bool asBackup_ = false;
@@ -223,6 +224,17 @@ protected:
   sva::MotionVecd imuVelC_;
   // pose of the IMU in the anchor frame
   sva::PTransformd X_C_IMU_;
+
+  stateObservation::kine::Orientation measuredOri_ = stateObservation::kine::Orientation::zeroRotation();
+  stateObservation::Vector measurements_;
+
+  double mu_contacts_ = 2;
+  double mu_gyroscope_ = 2;
+  double lambda_contacts_ = 2;
+  double gamma_contacts_ = 1;
+
+  // delayed IMU orientation measurement
+  DelayedOriMeasurement delayedOriMeas_;
 };
 
 } // namespace mc_state_observation
