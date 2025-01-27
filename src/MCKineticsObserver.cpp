@@ -1165,6 +1165,9 @@ void MCKineticsObserver::addToLogger(const mc_control::MCController & ctl,
   logger.addLogEntry(category_ + "_debug_config_OdometryType",
                      [this]() -> std::string { return measurements::odometryTypeToSstring(odometryType_); });
 
+  logger.addLogEntry(category_ + "_debug_config_withContactStateCovRemoval",
+                     [this]() -> std::string { return observer_.getWithContactStateCovRemoval() ? "True" : "False"; });
+
   logger.addLogEntry(category_ + "_debug_config_withAdaptativeContactProcessCov", [this]() -> std::string
                      { return observer_.getWithAdaptativeContactProcessCov() ? "True" : "False"; });
 
