@@ -2074,17 +2074,17 @@ void MCKineticsObserver::exportEstimatedValue(mc_control::MCController & ctl)
   {
     if(exportContactWrench_)
     {
-      ctl.datastore().make<Eigen::Vector6d>(robot_ + "::estimatedContactWrench_" + std::to_string(i),
-                                            observer_.getContactWrench(i));
-      // auto & estimatedContactWrench = ctl.datastore().get<Eigen::Vector6d>(robot_ + "::estimatedContactWrench_" +
+      ctl.datastore().make<sva::ForceVecd>(robot_ + "::estimatedContactWrench_" + std::to_string(i),
+                                           observer_.getContactWrench(i));
+      // auto & estimatedContactWrench = ctl.datastore().get<sva::ForceVecd>(robot_ + "::estimatedContactWrench_" +
       // std::to_string(i)); mc_rtc::log::info("[DATASTORE]Exporting estimatedContactWrench_{}: \n {}", i,
       // estimatedContactWrench);
     }
   }
   if(exportExternalWrench_)
   {
-    ctl.datastore().make<Eigen::Vector6d>(robot_ + "::estimatedExternalWrench", observer_.getUnmodeledWrench());
-    // auto & estimatedExternalWrench = ctl.datastore().get<Eigen::Vector6d>(robot_ + "::estimatedExternalWrench");
+    ctl.datastore().make<sva::ForceVecd>(robot_ + "::estimatedExternalWrench", observer_.getUnmodeledWrench());
+    // auto & estimatedExternalWrench = ctl.datastore().get<sva::ForceVecd>(robot_ + "::estimatedExternalWrench");
     // mc_rtc::log::info("[DATASTORE]Exporting estimatedExternalWrench: \n {}", estimatedExternalWrench);
   }
 }
