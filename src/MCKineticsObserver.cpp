@@ -2055,8 +2055,7 @@ void MCKineticsObserver::removeContactMeasurementsLogEntries(mc_rtc::Logger & lo
 void MCKineticsObserver::exportEstimatedValue(mc_control::MCController & ctl)
 {
   // Remove old values
-  // I couldm't find a way to assign a value to the existing datastore object. So I remove it and create a new one
-  // everytime.
+  // TODO: change belows program to more smart way.
   for(unsigned int i = 0; i < maxContacts_; i++)
   {
     if(ctl.datastore().has(robot_ + "::estimatedContactWrench_" + std::to_string(i)))
