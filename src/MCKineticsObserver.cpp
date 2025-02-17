@@ -147,12 +147,15 @@ void MCKineticsObserver::configure(const mc_control::MCController & ctl, const m
   }
 
   observer_.setWithAccelerationEstimation(config("withAccelerationEstimation"));
-  if(config.has("withAdaptativeContactProcessCov"))
+  < < < < < < < < < Temporary merge branch 1
+      // observer_.setWithDampingInMatrixA(config("withDampingInMatrixA"));
+      == == == == = if(config.has("withAdaptativeContactProcessCov"))
   {
     observer_.setWithAdaptativeContactProcessCov(config("withAdaptativeContactProcessCov"));
   }
+  >>>>>>>>> Temporary merge branch 2
 
-  linStiffness_ = (config("linStiffness").operator so::Vector3()).matrix().asDiagonal();
+      linStiffness_ = (config("linStiffness").operator so::Vector3()).matrix().asDiagonal();
   angStiffness_ = (config("angStiffness").operator so::Vector3()).matrix().asDiagonal();
   linDamping_ = (config("linDamping").operator so::Vector3()).matrix().asDiagonal();
   angDamping_ = (config("angDamping").operator so::Vector3()).matrix().asDiagonal();
@@ -1892,23 +1895,27 @@ void MCKineticsObserver::addContactLogEntries(const mc_control::MCController & c
                      [this, &contact]() -> Eigen::Vector3d
                      { return observer_.getCentroidContactWrench(contact.id()).segment(3, observer_.sizeTorque); });
 
-  logger.addLogEntry(category_ + "_debug_contactKine_" + contact.name() + "_inputCentroidContactKine_position",
+  logger.addLogEntry(contactsManager_.getObserverName() + "_debug_contactKine_" + contact.name()
+                         + "_inputCentroidContactKine_position",
                      &contact, [this, &contact]() -> Eigen::Vector3d
                      { return observer_.getCentroidContactInputKine(contact.id()).position(); });
 
   logger.addLogEntry(
-      category_ + "_debug_contactKine_" + contact.name() + "_inputCentroidContactKine_orientation", &contact,
-      [this, &contact]() -> Eigen::Quaternion<double>
+      contactsManager_.getObserverName() + "_debug_contactKine_" + contact.name()
+          + "_inputCentroidContactKine_orientation",
+      &contact, [this, &contact]() -> Eigen::Quaternion<double>
       { return observer_.getCentroidContactInputKine(contact.id()).orientation.inverse().toQuaternion(); });
-  logger.addLogEntry(category_ + "_debug_contactKine_" + contact.name() + "_inputCentroidContactKine_linVel", &contact,
-                     [this, &contact]() -> Eigen::Vector3d
+  logger.addLogEntry(contactsManager_.getObserverName() + "_debug_contactKine_" + contact.name()
+                         + "_inputCentroidContactKine_linVel",
+                     &contact, [this, &contact]() -> Eigen::Vector3d
                      { return observer_.getCentroidContactInputKine(contact.id()).linVel(); });
 
-  logger.addLogEntry(category_ + "_debug_contactKine_" + contact.name() + "_inputCentroidContactKine_angVel", &contact,
-                     [this, &contact]() -> Eigen::Vector3d
+  logger.addLogEntry(contactsManager_.getObserverName() + "_debug_contactKine_" + contact.name()
+                         + "_inputCentroidContactKine_angVel",
+                     &contact, [this, &contact]() -> Eigen::Vector3d
                      { return observer_.getCentroidContactInputKine(contact.id()).angVel(); });
   logger.addLogEntry(
-      category_ + "_debug_contactKine_" + contact.name() + "_realRobot_position", &contact,
+      contactsManager_.getObserverName() + "_debug_contactKine_" + contact.name() + "_realRobot_position", &contact,
       [this, &contact, &ctl]() -> Eigen::Vector3d
       {
         const auto & robot = ctl.robot(robot_);
@@ -1992,6 +1999,12 @@ void MCKineticsObserver::addContactMeasurementsLogEntries(mc_rtc::Logger & logge
   logger.addLogEntry(category_ + "_MEKF_measurements_contacts_torque_" + contact.name() + "_viscoAfterCorrection",
                      &contact, [&contact]() -> Eigen::Vector3d
                      { return contact.viscoElasticWrenchAfterCorrection_.segment(3, 3); });
+  logger.addLogEntry(category_ + "_MEKF_measurements_contacts_force_" + contact.name() + "_viscoAfterCorrection",
+                     &contact, [&contact]() -> Eigen::Vector3d
+                     { return contact.viscoElasticWrenchAfterCorrection_.segment(0, 3); });
+  logger.addLogEntry(category_ + "_MEKF_measurements_contacts_torque_" + contact.name() + "_viscoAfterCorrection",
+                     &contact, [&contact]() -> Eigen::Vector3d
+                     { return contact.viscoElasticWrenchAfterCorrection_.segment(3, 3); });
 
   // Measurements
   logger.addLogEntry(category_ + "_MEKF_measurements_contacts_force_" + contact.name() + "_measured", &contact,
@@ -2009,53 +2022,57 @@ void MCKineticsObserver::addContactMeasurementsLogEntries(mc_rtc::Logger & logge
   logger.addLogEntry(category_ + "_MEKF_measurements_contacts_force_" + contact.name() + "_corrected", &contact,
                      [this, &contact]() -> Eigen::Vector3d
                      {
-                       return correctedMeasurements_.segment(observer_.getContactMeasIndexByNum(contact.id()),
-                                                             observer_.sizeForce);
-                     });
-  logger.addLogEntry(category_ + "_MEKF_measurements_contacts_torque_" + contact.name() + "_measured", &contact,
                      [this, &contact]() -> Eigen::Vector3d
                      {
-                       return observer_.getEKF().getLastMeasurement().segment(
-                           observer_.getContactMeasIndexByNum(contact.id()) + observer_.sizeForce,
-                           observer_.sizeTorque);
+      return correctedMeasurements_.segment(observer_.getContactMeasIndexByNum(contact.id()), observer_.sizeForce);
                      });
-  logger.addLogEntry(category_ + "_MEKF_measurements_contacts_torque_" + contact.name() + "_predicted", &contact,
-                     [this, &contact]() -> Eigen::Vector3d
-                     {
-                       return observer_.getEKF().getLastPredictedMeasurement().segment(
-                           observer_.getContactMeasIndexByNum(contact.id()) + observer_.sizeForce,
-                           observer_.sizeTorque);
-                     });
-  logger.addLogEntry(category_ + "_MEKF_measurements_contacts_torque_" + contact.name() + "_corrected", &contact,
-                     [this, &contact]() -> Eigen::Vector3d
-                     {
-                       return correctedMeasurements_.segment(observer_.getContactMeasIndexByNum(contact.id())
-                                                                 + observer_.sizeForce,
-                                                             observer_.sizeTorque);
-                     });
+                     logger.addLogEntry(
+                         category_ + "_MEKF_measurements_contacts_torque_" + contact.name() + "_measured", &contact,
+                         [this, &contact]() -> Eigen::Vector3d
+                         {
+                           return observer_.getEKF().getLastMeasurement().segment(
+                               observer_.getContactMeasIndexByNum(contact.id()) + observer_.sizeForce,
+                               observer_.sizeTorque);
+                         });
+                     logger.addLogEntry(
+                         category_ + "_MEKF_measurements_contacts_torque_" + contact.name() + "_predicted", &contact,
+                         [this, &contact]() -> Eigen::Vector3d
+                         {
+                           return observer_.getEKF().getLastPredictedMeasurement().segment(
+                               observer_.getContactMeasIndexByNum(contact.id()) + observer_.sizeForce,
+                               observer_.sizeTorque);
+                         });
+                     logger.addLogEntry(
+                         category_ + "_MEKF_measurements_contacts_torque_" + contact.name() + "_corrected", &contact,
+                         [this, &contact]() -> Eigen::Vector3d
+                         {
+                           return correctedMeasurements_.segment(observer_.getContactMeasIndexByNum(contact.id())
+                                                                     + observer_.sizeForce,
+                                                                 observer_.sizeTorque);
+                         });
 }
 
 void MCKineticsObserver::removeContactLogEntries(mc_rtc::Logger & logger, const KoContactWithSensor & contact)
 {
-  logger.removeLogEntries(&contact);
+    logger.removeLogEntries(&contact);
 }
 
 void MCKineticsObserver::removeContactMeasurementsLogEntries(mc_rtc::Logger & logger,
                                                              const KoContactWithSensor & contact)
 {
-  // Innovation
-  logger.removeLogEntry(category_ + "_innovation_contacts_" + contact.name() + "_position");
-  logger.removeLogEntry(category_ + "_innovation_contacts_" + contact.name() + "_orientation");
-  logger.removeLogEntry(category_ + "_innovation_contacts_" + contact.name() + "_force");
-  logger.removeLogEntry(category_ + "_innovation_contacts_" + contact.name() + "_torque");
+    // Innovation
+    logger.removeLogEntry(category_ + "_innovation_contacts_" + contact.name() + "_position");
+    logger.removeLogEntry(category_ + "_innovation_contacts_" + contact.name() + "_orientation");
+    logger.removeLogEntry(category_ + "_innovation_contacts_" + contact.name() + "_force");
+    logger.removeLogEntry(category_ + "_innovation_contacts_" + contact.name() + "_torque");
 
-  logger.removeLogEntry(category_ + "_measurements_contacts_force_" + contact.name() + "_measured");
-  logger.removeLogEntry(category_ + "_measurements_contacts_force_" + contact.name() + "_predicted");
-  logger.removeLogEntry(category_ + "_measurements_contacts_force_" + contact.name() + "_corrected");
+    logger.removeLogEntry(category_ + "_measurements_contacts_force_" + contact.name() + "_measured");
+    logger.removeLogEntry(category_ + "_measurements_contacts_force_" + contact.name() + "_predicted");
+    logger.removeLogEntry(category_ + "_measurements_contacts_force_" + contact.name() + "_corrected");
 
-  logger.removeLogEntry(category_ + "_measurements_contacts_torque_" + contact.name() + "_measured");
-  logger.removeLogEntry(category_ + "_measurements_contacts_torque_" + contact.name() + "_predicted");
-  logger.removeLogEntry(category_ + "_measurements_contacts_torque_" + contact.name() + "_corrected");
+    logger.removeLogEntry(category_ + "_measurements_contacts_torque_" + contact.name() + "_measured");
+    logger.removeLogEntry(category_ + "_measurements_contacts_torque_" + contact.name() + "_predicted");
+    logger.removeLogEntry(category_ + "_measurements_contacts_torque_" + contact.name() + "_corrected");
 }
 
 //////////////////////////////////////////////////////
@@ -2064,33 +2081,33 @@ void MCKineticsObserver::removeContactMeasurementsLogEntries(mc_rtc::Logger & lo
 
 void MCKineticsObserver::exportEstimatedValue(mc_control::MCController & ctl)
 {
-  // Remove old values
-  // TODO: change belows program to more smart way.
-  for(unsigned int i = 0; i < maxContacts_; i++)
-  {
-    if(ctl.datastore().has(robot_ + "::estimatedContactWrench_" + std::to_string(i)))
+    // Remove old values
+    // TODO: change belows program to more smart way.
+    for(unsigned int i = 0; i < maxContacts_; i++)
     {
-      ctl.datastore().remove(robot_ + "::estimatedContactWrench_" + std::to_string(i));
+      if(ctl.datastore().has(robot_ + "::estimatedContactWrench_" + std::to_string(i)))
+      {
+        ctl.datastore().remove(robot_ + "::estimatedContactWrench_" + std::to_string(i));
+      }
     }
-  }
-  if(ctl.datastore().has(robot_ + "::estimatedExternalWrench"))
-  {
-    ctl.datastore().remove(robot_ + "::estimatedExternalWrench");
-  }
+    if(ctl.datastore().has(robot_ + "::estimatedExternalWrench"))
+    {
+      ctl.datastore().remove(robot_ + "::estimatedExternalWrench");
+    }
 
-  /* Export Estimated Values */
-  for(unsigned int i = 0; i < maxContacts_; i++)
-  {
-    if(exportContactWrench_)
+    /* Export Estimated Values */
+    for(unsigned int i = 0; i < maxContacts_; i++)
     {
-      ctl.datastore().make<sva::ForceVecd>(robot_ + "::estimatedContactWrench_" + std::to_string(i),
-                                           observer_.getContactWrench(i));
+      if(exportContactWrench_)
+      {
+        ctl.datastore().make<sva::ForceVecd>(robot_ + "::estimatedContactWrench_" + std::to_string(i),
+                                             observer_.getContactWrench(i));
+      }
     }
-  }
-  if(exportExternalWrench_)
-  {
-    ctl.datastore().make<sva::ForceVecd>(robot_ + "::estimatedExternalWrench", observer_.getUnmodeledWrench());
-  }
+    if(exportExternalWrench_)
+    {
+      ctl.datastore().make<sva::ForceVecd>(robot_ + "::estimatedExternalWrench", observer_.getUnmodeledWrench());
+    }
 }
 
 } // namespace mc_state_observation
