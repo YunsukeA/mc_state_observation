@@ -142,6 +142,8 @@ void TiltObserver::reset(const mc_control::MCController & ctl)
 
   const auto & imu = robot.bodySensor(imuSensor_);
 
+  yk_ = Eigen::Matrix<double, 9, 1>::Zero();
+
   poseW_ = realRobot.posW();
   velW_ = realRobot.velW();
   prevPoseW_ = sva::PTransformd::Identity();
@@ -150,6 +152,8 @@ void TiltObserver::reset(const mc_control::MCController & ctl)
   const Eigen::Matrix3d cOri = (imu.X_b_s() * ctl.robot(robot_).bodyPosW(imu.parentBody())).rotation();
   so::Vector3 initX2 = cOri * so::Vector3::UnitZ(); // so::kine::rotationMatrixToRotationVector(cOri.transpose());
 
+  initX_ = Eigen::RowVectorXd(9);
+  initX_ << so::Vector3::Zero(), initX2, initX2;
   estimator_.initEstimator(so::Vector3::Zero(), initX2, initX2);
 
   /* Initialization of the variables */
@@ -372,8 +376,6 @@ void TiltObserver::runTiltEstimator(const mc_control::MCController & ctl, const 
   {
     yv_ = worldImuKine_ctl_.orientation.toMatrix3().transpose() * worldAnchorKine_ctl_.linVel()
           - (imu.angularVelocity()).cross(imuAnchorKine_.position()) - imuAnchorKine_.linVel();
-
-    estimator_.setMeasurement(yv_, imu.linearAcceleration(), imu.angularVelocity(), k + 1);
   }
   else
   {
@@ -401,6 +403,9 @@ void TiltObserver::runTiltEstimator(const mc_control::MCController & ctl, const 
     }
   }
   estimator_.setMeasurement(yv_, imu.linearAcceleration(), imu.angularVelocity(), k + 1);
+  yk_.segment(0, 3) = yv_;
+  yk_.segment(3, 3) = imu.linearAcceleration();
+  yk_.segment(6, 3) = imu.angularVelocity();
 
   if(odometryManager_.anchorPointMethodChanged_) { estimator_.resetImuLocVelHat(); }
 
@@ -654,7 +659,9 @@ void TiltObserver::addToLogger(const mc_control::MCController & ctl,
                      [this]() -> so::Vector3 { return worldAnchorKine_ctl_.linVel(); });
   logger.addLogEntry(category + "_FloatingBase_world_pose", [this]() -> const sva::PTransformd & { return poseW_; });
   logger.addLogEntry(category + "_FloatingBase_world_vel", [this]() -> const sva::MotionVecd & { return velW_; });
-  logger.addLogEntry(category + "_debug_x1", [this]() -> const so::Vector3 & { return yv_; });
+  logger.addLogEntry(category + "_debug_yv", [this]() -> const so::Vector3 & { return yv_; });
+  logger.addLogEntry(category + "_debug_y", [this]() -> const so::Vector & { return yk_; });
+  logger.addLogEntry(category + "_debug_initX", [this]() -> const so::Vector & { return initX_; });
 
   logger.addLogEntry(category + "_debug_realWorldImuLocAngVel",
                      [this, &ctl]() -> so::Vector3
