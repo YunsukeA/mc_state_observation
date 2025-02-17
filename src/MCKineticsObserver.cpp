@@ -2085,20 +2085,11 @@ void MCKineticsObserver::exportEstimatedValue(mc_control::MCController & ctl)
     {
       ctl.datastore().make<sva::ForceVecd>(robot_ + "::estimatedContactWrench_" + std::to_string(i),
                                            observer_.getContactWrench(i));
-      // mc_rtc::log::info("[MCKineticsObserver] The registered keys are below");
-      // std::vector<std::string> keys = ctl.datastore().keys();
-      // for(const std::string & key : keys) { std::cout << "[MCKineticsObserver] " << key << std::endl; }
-      // auto & estimatedContactWrench =
-      //     ctl.datastore().get<sva::ForceVecd>(robot_ + "::estimatedContactWrench_" + std::to_string(i));
-      // mc_rtc::log::info("[DATASTORE]Exporting {}: \n {}", robot_ + "::estimatedContactWrench_" + std::to_string(i),
-      //                   estimatedContactWrench);
     }
   }
   if(exportExternalWrench_)
   {
     ctl.datastore().make<sva::ForceVecd>(robot_ + "::estimatedExternalWrench", observer_.getUnmodeledWrench());
-    // auto & estimatedExternalWrench = ctl.datastore().get<sva::ForceVecd>(robot_ + "::estimatedExternalWrench");
-    // mc_rtc::log::info("[DATASTORE]Exporting estimatedExternalWrench: \n {}", estimatedExternalWrench);
   }
 }
 
