@@ -296,6 +296,11 @@ public:
    */
   inline const Eigen::VectorXd measurements() const { return observer_.getEKF().getLastMeasurement(); }
 
+  /* \todo
+    add a method to get the last estimated state vector
+    inline const Eigen::VectorXd state() const { return observer_.getEKF().getLastState(); }
+  */
+
   /** Floating-base transform estimate.
    *
    */
@@ -484,6 +489,20 @@ private:
 
   std::vector<std::string> contactSensorsIgnored_;
   bool ignoreWrenchSensors_ = false;
+  /* For datastore */
+  // set true when using estimated value in Force control controller
+  bool exportContactWrench_ = false;
+  bool exportExternalWrench_ = false;
+  bool isInitialized_ = false;
+
+  /** Export the estimated value to the controller.
+   * @brief Export the estimated value to the controller.
+   * @details Export the estimated value to the controller. make lambda function to export the estimated value using
+   * datastore utility.
+   * @param ctl Controller
+   *
+   */
+  void exportEstimatedValue(mc_control::MCController & ctl);
 };
 
 } // namespace mc_state_observation

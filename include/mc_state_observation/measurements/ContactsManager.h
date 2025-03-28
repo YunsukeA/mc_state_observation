@@ -191,6 +191,12 @@ public:
    */
   void addToLogger(mc_rtc::Logger &, const std::string & category);
 
+  /*! \brief Observer name accessor
+   *
+   *  @return The name of the observer using this contacts manager
+   */
+  const std::string & getObserverName() const { return observerName_; }
+
 private:
   /// @brief Initializer for a contacts detection based on contact surfaces
   /// @param ctl The controller

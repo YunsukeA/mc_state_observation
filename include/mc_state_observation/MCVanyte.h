@@ -9,7 +9,7 @@
 namespace mc_state_observation
 {
 
-struct MCVanytEstimator : public mc_observers::Observer
+struct MCVanyte : public mc_observers::Observer
 {
   /// @brief Structure containing information about delayed orientation measurements.
   struct DelayedOriMeasurement
@@ -24,10 +24,10 @@ struct MCVanytEstimator : public mc_observers::Observer
   friend struct MCKineticsObserver;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 public:
-  /// @brief Constructor for the MCVanytEstimator.
+  /// @brief Constructor for the MCVanyte.
   /// @details The parameters asBackup is given only if the Vanyte is used as a backup by the
   /// Kinetics Observer
-  MCVanytEstimator(const std::string & type, double dt, bool asBackup = false);
+  MCVanyte(const std::string & type, double dt, bool asBackup = false);
 
   void configure(const mc_control::MCController & ctl, const mc_rtc::Configuration &) override;
 
