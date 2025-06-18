@@ -2,6 +2,7 @@
 #include <mc_observers/ObserverMacros.h>
 #include <mc_rtc/logging.h>
 #include <SpaceVecAlg/EigenTypedef.h>
+#include <SpaceVecAlg/SpaceVecAlg>
 
 #include <mc_state_observation/MCKineticsObserver.h>
 #include <mc_state_observation/gui_helpers.h>
@@ -1113,7 +1114,10 @@ void MCKineticsObserver::updateContact(const mc_control::MCController & ctl, KoC
 void MCKineticsObserver::updateContacts(const mc_control::MCController & ctl, mc_rtc::Logger & logger)
 {
   maintainedContacts_.clear();
-  for(auto & cont : contactSensorsIgnored_) { std::cout << std::endl << "ignored: " << cont << std::endl; }
+  for(auto & cont : contactSensorsIgnored_)
+  {
+    // std::cout << std::endl << "ignored: " << cont << std::endl;
+  }
 
   const so::Matrix12 * initCovariance;
 
@@ -2060,12 +2064,12 @@ void MCKineticsObserver::addContactMeasurementsLogEntries(mc_rtc::Logger & logge
   logger.addLogEntry(category_ + "_MEKF_measurements_contacts_torque_" + contact.name() + "_viscoAfterCorrection",
                      &contact, [&contact]() -> Eigen::Vector3d
                      { return contact.viscoElasticWrenchAfterCorrection_.segment(3, 3); });
-  logger.addLogEntry(category_ + "_MEKF_measurements_contacts_force_" + contact.name() + "_viscoAfterCorrection",
-                     &contact, [&contact]() -> Eigen::Vector3d
-                     { return contact.viscoElasticWrenchAfterCorrection_.segment(0, 3); });
-  logger.addLogEntry(category_ + "_MEKF_measurements_contacts_torque_" + contact.name() + "_viscoAfterCorrection",
-                     &contact, [&contact]() -> Eigen::Vector3d
-                     { return contact.viscoElasticWrenchAfterCorrection_.segment(3, 3); });
+  // logger.addLogEntry(category_ + "_MEKF_measurements_contacts_force_" + contact.name() + "_viscoAfterCorrection",
+  //                    &contact, [&contact]() -> Eigen::Vector3d
+  //                    { return contact.viscoElasticWrenchAfterCorrection_.segment(0, 3); });
+  // logger.addLogEntry(category_ + "_MEKF_measurements_contacts_torque_" + contact.name() + "_viscoAfterCorrection",
+  //                    &contact, [&contact]() -> Eigen::Vector3d
+  //                    { return contact.viscoElasticWrenchAfterCorrection_.segment(3, 3); });
 
   // Measurements
   logger.addLogEntry(category_ + "_MEKF_measurements_contacts_force_" + contact.name() + "_measured", &contact,
@@ -2142,14 +2146,16 @@ void MCKineticsObserver::exportEstimatedValue(mc_control::MCController & ctl)
   // TODO: change belows program to more smart way.
   for(unsigned int i = 0; i < maxContacts_; i++)
   {
-    if(ctl.datastore().has(robot_ + "::estimatedContactWrench_" + std::to_string(i)))
+    if(!ctl.datastore().has(robot_ + "::estimatedContactWrench_" + std::to_string(i)))
     {
-      ctl.datastore().remove(robot_ + "::estimatedContactWrench_" + std::to_string(i));
+      ctl.datastore().make<sva::ForceVecd>(robot_ + "::estimatedContactWrench_" + std::to_string(i),
+                                           observer_.getContactWrench(i));
     }
   }
-  if(ctl.datastore().has(robot_ + "::estimatedExternalWrench_raw(deleteLater)"))
+  if(!ctl.datastore().has(robot_ + "::estimatedExternalWrench_raw(deleteLater)"))
   {
-    ctl.datastore().remove(robot_ + "::estimatedExternalWrench_raw(deleteLater)");
+    ctl.datastore().make<sva::ForceVecd>(robot_ + "::estimatedExternalWrench_raw(deleteLater)",
+                                         observer_.getUnmodeledWrench());
   }
 
   // get Centroid kinematics
@@ -2164,15 +2170,15 @@ void MCKineticsObserver::exportEstimatedValue(mc_control::MCController & ctl)
   {
     if(exportContactWrench_)
     {
-      ctl.datastore().make<sva::ForceVecd>(robot_ + "::estimatedContactWrench_" + std::to_string(i),
-                                           observer_.getContactWrench(i));
+      ctl.datastore().assign<sva::ForceVecd>(robot_ + "::estimatedContactWrench_" + std::to_string(i),
+                                             observer_.getContactWrench(i));
     }
   }
   if(exportExternalWrench_)
   {
 
-    ctl.datastore().make<sva::ForceVecd>(robot_ + "::estimatedExternalWrench_raw(deleteLater)",
-                                         observer_.getUnmodeledWrench());
+    ctl.datastore().assign<sva::ForceVecd>(robot_ + "::estimatedExternalWrench_raw(deleteLater)",
+                                           observer_.getUnmodeledWrench());
 
     if(!ctl.datastore().has(robot_ + "::worldCentroidKinePTrans")
        || !ctl.datastore().has(robot_ + "::estimatedExternalWrench_Force")
@@ -2188,6 +2194,8 @@ void MCKineticsObserver::exportEstimatedValue(mc_control::MCController & ctl)
       ctl.datastore().make<Eigen::Vector3d>(robot_ + "::estimatedExternalWrench_Force", extForceCentroid);
       ctl.datastore().make<Eigen::Vector3d>(robot_ + "::estimatedExternalWrench_Torque", extMomentCentroid);
     }
+
+    ctl.datastore().assign<sva::PTransformd>(robot_ + "::worldCentroidKinePTrans", worldCentroidKinePTrans_);
   }
 }
 
