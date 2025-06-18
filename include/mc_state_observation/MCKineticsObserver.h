@@ -489,6 +489,7 @@ private:
 
   std::vector<std::string> contactSensorsIgnored_;
   bool ignoreWrenchSensors_ = false;
+
   /* For datastore */
   // set true when using estimated value in Force control controller
   bool exportContactWrench_ = false;
@@ -503,6 +504,8 @@ private:
    *
    */
   void exportEstimatedValue(mc_control::MCController & ctl);
+  sva::PTransformd worldCentroidKinePTrans_;
+  stateObservation::kine::Kinematics worldCentroidKine_;
 };
 
 } // namespace mc_state_observation

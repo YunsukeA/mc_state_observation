@@ -2147,10 +2147,17 @@ void MCKineticsObserver::exportEstimatedValue(mc_control::MCController & ctl)
       ctl.datastore().remove(robot_ + "::estimatedContactWrench_" + std::to_string(i));
     }
   }
-  if(ctl.datastore().has(robot_ + "::estimatedExternalWrench"))
+  if(ctl.datastore().has(robot_ + "::estimatedExternalWrench_raw(deleteLater)"))
   {
-    ctl.datastore().remove(robot_ + "::estimatedExternalWrench");
+    ctl.datastore().remove(robot_ + "::estimatedExternalWrench_raw(deleteLater)");
   }
+
+  // get Centroid kinematics
+  worldCentroidKine_ = observer_.getGlobalCentroidKinematics();
+
+  // transform kinematics to PTransformd
+  worldCentroidKinePTrans_.rotation() = worldCentroidKine_.orientation.toMatrix3().transpose();
+  worldCentroidKinePTrans_.translation() = worldCentroidKine_.position();
 
   /* Export Estimated Values */
   for(unsigned int i = 0; i < maxContacts_; i++)
@@ -2163,7 +2170,24 @@ void MCKineticsObserver::exportEstimatedValue(mc_control::MCController & ctl)
   }
   if(exportExternalWrench_)
   {
-    ctl.datastore().make<sva::ForceVecd>(robot_ + "::estimatedExternalWrench", observer_.getUnmodeledWrench());
+
+    ctl.datastore().make<sva::ForceVecd>(robot_ + "::estimatedExternalWrench_raw(deleteLater)",
+                                         observer_.getUnmodeledWrench());
+
+    if(!ctl.datastore().has(robot_ + "::worldCentroidKinePTrans")
+       || !ctl.datastore().has(robot_ + "::estimatedExternalWrench_Force")
+       || !ctl.datastore().has(robot_ + "::estimatedExternalWrench_Torque"))
+    {
+      // get extWrench in centroid frame
+      const Eigen::Vector3d & extForceCentroid =
+          observer_.getCurrentStateVector().segment(observer_.unmodeledForceIndex(), observer_.sizeForce);
+      const Eigen::Vector3d & extMomentCentroid =
+          observer_.getCurrentStateVector().segment(observer_.unmodeledTorqueIndex(), observer_.sizeTorque);
+
+      ctl.datastore().make<sva::PTransformd>(robot_ + "::worldCentroidKinePTrans", worldCentroidKinePTrans_);
+      ctl.datastore().make<Eigen::Vector3d>(robot_ + "::estimatedExternalWrench_Force", extForceCentroid);
+      ctl.datastore().make<Eigen::Vector3d>(robot_ + "::estimatedExternalWrench_Torque", extMomentCentroid);
+    }
   }
 }
 
