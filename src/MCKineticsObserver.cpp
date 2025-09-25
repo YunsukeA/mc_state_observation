@@ -2184,18 +2184,22 @@ void MCKineticsObserver::exportEstimatedValue(mc_control::MCController & ctl)
        || !ctl.datastore().has(robot_ + "::estimatedExternalWrench_Force")
        || !ctl.datastore().has(robot_ + "::estimatedExternalWrench_Torque"))
     {
-      // get extWrench in centroid frame
-      const Eigen::Vector3d & extForceCentroid =
-          observer_.getCurrentStateVector().segment(observer_.unmodeledForceIndex(), observer_.sizeForce);
-      const Eigen::Vector3d & extMomentCentroid =
-          observer_.getCurrentStateVector().segment(observer_.unmodeledTorqueIndex(), observer_.sizeTorque);
-
       ctl.datastore().make<sva::PTransformd>(robot_ + "::worldCentroidKinePTrans", worldCentroidKinePTrans_);
-      ctl.datastore().make<Eigen::Vector3d>(robot_ + "::estimatedExternalWrench_Force", extForceCentroid);
-      ctl.datastore().make<Eigen::Vector3d>(robot_ + "::estimatedExternalWrench_Torque", extMomentCentroid);
+      ctl.datastore().make<Eigen::Vector3d>(
+          robot_ + "::estimatedExternalWrench_Force",
+          observer_.getCurrentStateVector().segment(observer_.unmodeledForceIndex(), observer_.sizeForce));
+      ctl.datastore().make<Eigen::Vector3d>(
+          robot_ + "::estimatedExternalWrench_Torque",
+          observer_.getCurrentStateVector().segment(observer_.unmodeledTorqueIndex(), observer_.sizeTorque));
     }
 
     ctl.datastore().assign<sva::PTransformd>(robot_ + "::worldCentroidKinePTrans", worldCentroidKinePTrans_);
+    ctl.datastore().assign<Eigen::Vector3d>(
+        robot_ + "::estimatedExternalWrench_Force",
+        observer_.getCurrentStateVector().segment(observer_.unmodeledForceIndex(), observer_.sizeForce));
+    ctl.datastore().assign<Eigen::Vector3d>(
+        robot_ + "::estimatedExternalWrench_Torque",
+        observer_.getCurrentStateVector().segment(observer_.unmodeledTorqueIndex(), observer_.sizeTorque));
   }
 }
 
