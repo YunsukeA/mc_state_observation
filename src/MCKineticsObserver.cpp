@@ -14,7 +14,7 @@ namespace mc_state_observation
 {
 MCKineticsObserver::MCKineticsObserver(const std::string & type, double dt)
 : mc_observers::Observer(type, dt), maxContacts_(4), maxIMUs_(1), observer_(maxContacts_, maxIMUs_),
-  tiltObserver_(type, dt, true)
+  tiltObserver_(type, dt, true), mass_(0.0)
 {
   observer_.setSamplingTime(dt);
 }
@@ -40,6 +40,7 @@ void MCKineticsObserver::configure(const mc_control::MCController & ctl, const m
 
   config("debug", debug_);
   config("verbose", verbose_);
+  config("mass", mass_);
 
   // we set the desired type of odometry
   auto leggedOdomConfig = config("leggedOdometry");
@@ -385,8 +386,7 @@ void MCKineticsObserver::reset(const mc_control::MCController & ctl)
   }
 
   inertiaWaist_ = mergeMbg.nodeByName(realRobotModule.mb.body(0).name())->body.inertia();
-  mass(ctl.realRobot(robot_).mass());
-
+  if(mass_ < 1.00) { mass(ctl.realRobot(robot_).mass()); }
   if(debug_) { mc_rtc::log::info("inertiaWaist = {}", inertiaWaist_); }
 
   /* Initialization of variables */
