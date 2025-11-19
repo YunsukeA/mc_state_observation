@@ -40,7 +40,11 @@ void MCKineticsObserver::configure(const mc_control::MCController & ctl, const m
 
   config("debug", debug_);
   config("verbose", verbose_);
-  config("mass", mass_);
+  if(config.has("mass"))
+  {
+    config("mass", mass_);
+    mass(mass_);
+  }
 
   // we set the desired type of odometry
   auto leggedOdomConfig = config("leggedOdometry");
